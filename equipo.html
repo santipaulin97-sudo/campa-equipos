@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>La Pausa FC — Gestión de Equipo v2.0</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/equipos-config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #060B08;
+  --topbar: #030604;
+  --card: #0E1611;
+  --inner: #090E0B;
+  --border: rgba(255, 255, 255, 0.06);
+  --muted: #8FA395;
+  --sub: #C2D1C7;
+  --text: #EBF5EF;
+  --green: #00E676;
+  --red: #FF5252;
+  --amber: #FFD740;
+  --blue: #2196F3;
+  --r: 8px;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 13px;
+  overflow-x: hidden;
+}
+
+/* ── TOAST ALERTA ── */
+#toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
+.toast { padding: 12px 18px; border-radius: 4px; font-weight: 600; min-width: 280px; background: var(--card); border: 1px solid var(--border); box-shadow: 0 8px 24px rgba(0,0,0,0.5); animation: slideIn .3s ease; }
+.toast.success { border-left: 4px solid var(--green); color: var(--green); }
+.toast.danger { border-left: 4px solid var(--red); color: var(--red); }
+@keyframes slideIn { from { opacity: 0; transform: translateX(20px) } to { opacity: 1; transform: none } }
+
+/* ── ACCESO SEGURIDAD (PIN) ── */
+.auth-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: linear-gradient(135deg, #051207, var(--bg)); }
+.auth-box { max-width: 360px; width: 100%; text-align: center; background: var(--card); padding: 40px 30px; border-radius: var(--r); border: 1px solid var(--border); box-shadow: 0 12px 40px rgba(0,0,0,0.6); }
+.auth-title { font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 800; color: var(--text); margin-bottom: 6px; }
+.auth-sub { color: var(--muted); font-size: 12px; margin-bottom: 20px; line-height: 1.4; }
+.pin-dots { display: flex; gap: 12px; justify-content: center; margin: 15px 0; }
+.pin-dot { width: 11px; height: 11px; border-radius: 50%; background: var(--bg); transition: all .2s; border: 1px solid var(--border); }
+.pin-dot.filled { background: var(--green); transform: scale(1.15); box-shadow: 0 0 10px var(--green); }
+.pin-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; max-width: 220px; margin: 0 auto; }
+.pin-key { padding: 12px; font-size: 18px; font-weight: 600; background: var(--inner); border: 1px solid var(--border); color: var(--text); border-radius: 4px; cursor: pointer; user-select: none; }
+.pin-key:hover { background: var(--border); }
+
+/* ── INTERFAZ GENERAL APP ── */
+#app-screen { display: none; flex-direction: column; min-height: 100vh; }
+.app-header { background: var(--topbar); border-bottom: 1px solid var(--border); height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: sticky; top: 0; z-index: 200; }
+.header-brand { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 16px; letter-spacing: 0.5px; }
+.header-brand span { color: var(--green); font-size: 10px; font-weight: 500; margin-left: 6px; border-left: 1px solid var(--border); padding-left: 8px; font-family: 'Inter', sans-serif; }
+.header-right { display: flex; align-items: center; gap: 14px; }
+.header-btn { background: var(--card); border: 1px solid var(--border); color: var(--sub); padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 11px; transition: all 0.2s; }
+.header-btn:hover { border-color: var(--muted); color: var(--text); }
+
+/* LOGOS COMPARTIDOS (DEFINITIVO PARA CÍRCULO PERFECTO) */
+.logos-wrapper { 
+  display: flex; 
+  align-items: center; 
+  gap: 10px; 
+  flex-shrink: 0; 
+}
+.header-logo { 
+  width: 42px; 
+  height: 42px; 
+  border-radius: 50%; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  box-shadow: 0 3px 10px rgba(0,0,0,0.5); 
+  overflow: hidden; 
+  flex-shrink: 0;
+}
+.logo-pausa { 
+  background: var(--inner); 
+  border: 2px solid var(--green); 
+  color: var(--text); 
+  font-family: 'Inter', sans-serif; /* Cambiado a Inter porque Syne es muy ancho */
+  font-size: 7.5px; 
+  font-weight: 800; 
+  text-align: center; 
+  line-height: 1.1; 
+  letter-spacing: -0.4px; /* Comprime las letras hacia el centro */
+}
+.logo-campa { 
+  background: #e2eae4; 
+  border: 1px solid rgba(0,0,0,0.1); 
+}
+.logo-campa-text { 
+  color: #1a73e8; 
+  font-family: 'Inter', sans-serif; /* Cambiado a Inter */
+  font-size: 8px; 
+  font-weight: 900; 
+  letter-spacing: -0.5px; /* Comprime las letras hacia el centro */
+  text-align: center;
+  line-height: 1;
+}
+
+/* TICKER FINANCIERO MÓVIL */
+#ticker { overflow: hidden; background: rgba(0, 230, 118, 0.03); border-bottom: 1px solid var(--border); padding: 6px 0; height: 28px; display: flex; align-items: center; }
+#tick-inner { display: flex; white-space: nowrap; color: var(--green); font-size: 11px; font-weight: 500; letter-spacing: .03em; }
+#tick-inner span { padding-right: 60px; display: inline-block; }
+
+/* NAVEGACIÓN POR PESTAÑAS */
+.tab-bar { background: var(--topbar); border-bottom: 1px solid var(--border); display: flex; padding: 0 16px; }
+.tab-btn { padding: 14px 16px; font-size: 12px; font-weight: 500; cursor: pointer; background: none; border: none; color: var(--muted); font-family: inherit; border-bottom: 2px solid transparent; transition: all .15s; }
+.tab-btn.active { color: var(--text); border-bottom-color: var(--green); font-weight: 600; }
+
+.content { max-width: 1100px; width: 100%; margin: 0 auto; padding: 20px 16px 60px; }
+
+/* NAVEGADOR MENSUAL */
+.month-nav { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 20px; }
+.mnav-btn { width: 32px; height: 32px; background: var(--card); border: 1px solid var(--border); color: var(--text); border-radius: 4px; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+.mnav-btn:hover { background: var(--inner); border-color: var(--muted); }
+.month-label { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 700; min-width: 180px; text-align: center; color: var(--text); }
+
+.section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 10px; }
+
+/* ALERTAS OPERATIVAS */
+.alerts-panel { background: rgba(244,67,54,0.04); border: 1px solid rgba(244,67,54,0.15); border-radius: var(--r); padding: 12px 16px; margin-bottom: 20px; }
+.alerts-header { font-size: 11px; font-weight: 700; color: var(--red); text-transform: uppercase; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+.alerts-container { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--sub); }
+
+/* DISEÑO DE MATRICES (GRIDS) */
+.g4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+@media (max-width: 800px) { .g4 { grid-template-columns: repeat(2, 1fr); } }
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+@media (max-width: 700px) { .g2 { grid-template-columns: 1fr; } }
+
+/* TARJETAS INTERACTIVAS (KPI CARDS) */
+.kc { background: var(--card); border: 1px solid var(--border); border-radius: var(--r); padding: 16px; display: flex; flex-direction: column; gap: 6px; border-top: 2px solid var(--border); }
+.kc-label { font-size: 10px; font-weight: 600; text-transform: uppercase; color: var(--muted); letter-spacing: 0.05em; }
+.kc-val { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 700; color: var(--text); }
+
+/* CONTENEDORES GRÁFICOS */
+.chart-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--r); padding: 16px; }
+.chart-wrap { position: relative; height: 180px; }
+
+/* FORMULARIOS Y ADICIONES */
+.form-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--r); padding: 16px; margin-bottom: 16px; }
+.form-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.form-group { display: flex; flex-direction: column; gap: 4px; flex: 1 1 140px; }
+.form-group.wide { flex: 2 1 200px; }
+.form-group label { font-size: 10px; color: var(--muted); font-weight: 600; text-transform: uppercase; }
+.f-inp, .f-sel { padding: 8px 12px; font-size: 12px; font-family: inherit; background: var(--inner); border: 1px solid var(--border); color: var(--text); border-radius: 4px; outline: none; transition: border 0.15s; }
+.f-inp:focus, .f-sel:focus { border-color: var(--green); }
+
+.add-btn { padding: 8px 16px; font-size: 12px; font-weight: 600; border: none; border-radius: 4px; cursor: pointer; transition: opacity 0.2s; background: var(--green); color: var(--bg); }
+.add-btn:hover { opacity: .9; }
+
+/* TABLAS REFINADAS */
+.list-table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
+.list-table th { padding: 10px; color: var(--muted); font-size: 10px; text-transform: uppercase; border-bottom: 1px solid var(--border); font-weight: 700; letter-spacing: 0.05em; }
+.list-table td { padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.03); color: var(--sub); }
+.list-table tbody tr:hover { background: rgba(255,255,255,0.01); }
+
+.badge-status { font-size: 9px; padding: 2px 6px; border-radius: 3px; font-weight: 700; text-transform: uppercase; }
+.badge-status.complete { background: rgba(0,230,118,0.1); color: var(--green); }
+.badge-status.partial { background: rgba(255,215,64,0.1); color: var(--amber); }
+.badge-status.none { background: rgba(255,82,82,0.1); color: var(--red); }
+
+/* ELEMENTOS OPERATIVOS DE GASTOS */
+.tx-list { display: flex; flex-direction: column; gap: 6px; }
+.item-row { display: flex; align-items: center; gap: 12px; background: var(--inner); border-radius: 4px; padding: 8px 12px; border: 1px solid var(--border); }
+.item-main { flex: 1; min-width: 0; }
+.item-title { font-size: 12px; font-weight: 600; color: var(--text); }
+.item-sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.btn-del { background: none; border: none; color: rgba(255,255,255,0.2); font-size: 14px; cursor: pointer; transition: color 0.15s; }
+.btn-del:hover { color: var(--red); }
+
+.tab-panel { display: none; animation: fadeIn .2s ease; }
+.tab-panel.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(2px) } to { opacity: 1; transform: none } }
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ── ARCHIVOS Y MULTIMEDIA ── */
+.files-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; margin-bottom: 20px; }
+.file-card { background: var(--inner); border: 1px solid var(--border); border-radius: var(--r); padding: 14px; display: flex; flex-direction: column; gap: 8px; transition: border-color 0.2s; }
+.file-card:hover { border-color: var(--muted); }
+.file-icon { font-size: 28px; }
+.file-name { font-size: 12px; font-weight: 600; color: var(--text); word-break: break-word; }
+.file-meta { font-size: 10px; color: var(--muted); }
+.file-actions { display: flex; gap: 8px; margin-top: 4px; }
+.file-actions button { padding: 4px 10px; font-size: 10px; border-radius: 3px; border: 1px solid var(--border); background: var(--card); color: var(--sub); cursor: pointer; font-weight: 600; }
+.file-actions button:hover { border-color: var(--muted); color: var(--text); }
+.file-actions button.del:hover { border-color: var(--red); color: var(--red); }
+
+.sub-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+.sub-tab { padding: 8px 16px; font-size: 11px; font-weight: 600; border: 1px solid var(--border); background: var(--card); color: var(--muted); border-radius: 4px; cursor: pointer; transition: all 0.15s; }
+.sub-tab.active { background: var(--green); color: var(--bg); border-color: var(--green); }
+.sub-tab:hover:not(.active) { border-color: var(--muted); color: var(--text); }
+
+.upload-zone { border: 2px dashed var(--border); border-radius: var(--r); padding: 30px 20px; text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 16px; background: var(--card); }
+.upload-zone:hover, .upload-zone.dragover { border-color: var(--green); background: rgba(0,230,118,0.03); }
+.upload-zone input[type="file"] { display: none; }
+.upload-icon { font-size: 36px; margin-bottom: 8px; }
+.upload-text { font-size: 12px; color: var(--muted); }
+.upload-text b { color: var(--green); }
+
+.video-preview { width: 100%; border-radius: 4px; max-height: 180px; object-fit: cover; background: #000; }
+.img-preview { width: 100%; border-radius: 4px; max-height: 180px; object-fit: contain; background: var(--bg); }
+
+.file-counter { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); background: var(--inner); padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border); margin-bottom: 12px; }
+.file-counter b { color: var(--text); }
+
+/* MODAL VISOR */
+.modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 500; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal-content { max-width: 90vw; max-height: 90vh; position: relative; }
+.modal-content video, .modal-content img { max-width: 90vw; max-height: 85vh; border-radius: var(--r); }
+.modal-close { position: absolute; top: -12px; right: -12px; width: 30px; height: 30px; border-radius: 50%; background: var(--red); color: white; border: none; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div id="toast-container"></div>
+
+<div id="pin-screen" class="auth-screen">
+  <div class="auth-box">
+    <span style="font-size:36px; display:block; margin-bottom:10px;">⚽</span>
+    <div class="auth-title" id="auth-team-name">CARGANDO...</div>
+    <div class="auth-sub">Control Operativo de Caja y Plantel<br>Torneo Campa 2026. Introduce el PIN.</div>
+    <div class="pin-dots" id="pin-dots">
+      <div class="pin-dot" id="p0"></div><div class="pin-dot" id="p1"></div>
+      <div class="pin-dot" id="p2"></div><div class="pin-dot" id="p3"></div>
+    </div>
+    <div class="pin-pad">
+      <button class="pin-key" onclick="pressPin('1')">1</button>
+      <button class="pin-key" onclick="pressPin('2')">2</button>
+      <button class="pin-key" onclick="pressPin('3')">3</button>
+      <button class="pin-key" onclick="pressPin('4')">4</button>
+      <button class="pin-key" onclick="pressPin('5')">5</button>
+      <button class="pin-key" onclick="pressPin('6')">6</button>
+      <button class="pin-key" onclick="pressPin('7')">7</button>
+      <button class="pin-key" onclick="pressPin('8')">8</button>
+      <button class="pin-key" onclick="pressPin('9')">9</button>
+      <button class="pin-key" style="background:transparent; border:none; cursor:default;"></button>
+      <button class="pin-key" onclick="pressPin('0')">0</button>
+      <button class="pin-key" style="color:var(--muted)" onclick="deletePin()">⌫</button>
+    </div>
+    <div style="font-size:11px; margin-top:20px; color:var(--muted)">Acceso demo: 1402</div>
+  </div>
+</div>
+
+<div id="app-screen">
+  <header class="app-header">
+    <div class="header-brand">LA PAUSA FC <span>SISTEMA DE LIGAS v2.0</span></div>
+    <div class="header-right">
+      <button class="header-btn" onclick="lockApp()">🔒 Bloquear</button>
+      <div class="logos-wrapper">
+        <div class="header-logo logo-pausa">
+          <div>LA<br>PAUSA</div>
+        </div>
+        <div class="header-logo logo-campa" title="Torneo Campa">
+          <div class="logo-campa-text">CAMPA</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div id="ticker">
+    <div id="tick-inner"><span id="t1"></span><span id="t2"></span></div>
+  </div>
+
+  <nav class="tab-bar">
+    <button class="tab-btn active" id="btn-tab-dashboard" onclick="switchTab('dashboard', this)">🏠 Resumen Financiero</button>
+    <button class="tab-btn" onclick="switchTab('jugadores', this)">👥 Plantel y Cuotas</button>
+    <button class="tab-btn" onclick="switchTab('gastos', this)">💸 Imputación de Egresos</button>
+    <button class="tab-btn" onclick="switchTab('archivos', this)">📁 Archivos del Equipo</button>
+  </nav>
+
+  <div class="content">
+    
+    <div class="month-nav">
+      <button class="mnav-btn" onclick="offsetMonth(-1)">‹</button>
+      <div class="month-label" id="active-month-text">Junio 2026</div>
+      <button class="mnav-btn" onclick="offsetMonth(1)">›</button>
+    </div>
+
+    <div id="tab-dashboard" class="tab-panel active">
+      <div class="alerts-panel" id="panel-alertas" style="display:none;">
+        <div class="alerts-header">🚨 Alertas del Estado de Caja</div>
+        <div class="alerts-container" id="container-alertas-items"></div>
+      </div>
+
+      <div class="section-label">Balance del Período Seleccionado</div>
+      <div class="g4">
+        <div class="kc" style="border-top-color: var(--green)">
+          <span class="kc-label">Recaudación Real</span>
+          <div class="kc-val" id="kpi-recaudado" style="color:var(--green)">$0</div>
+        </div>
+        <div class="kc" style="border-top-color: var(--red)">
+          <span class="kc-label">Egresos Totales</span>
+          <div class="kc-val" id="kpi-gastos" style="color:var(--red)">$0</div>
+        </div>
+        <div class="kc" style="border-top-color: var(--blue)">
+          <span class="kc-label">Fondo Neto</span>
+          <div class="kc-val" id="kpi-neto">$0</div>
+        </div>
+        <div class="kc" style="border-top-color: var(--amber)">
+          <span class="kc-label">Capital en Mora</span>
+          <div class="kc-val" id="kpi-mora" style="color:var(--amber)">$0</div>
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="chart-card">
+          <div class="section-label">Tendencia de Solvencia Progresiva</div>
+          <div class="chart-wrap"><canvas id="chart-line-evolucion"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="section-label">Distribución de Costos del Torneo</div>
+          <div class="chart-wrap"><canvas id="chart-pie-gastos"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-jugadores" class="tab-panel">
+      <div class="g2">
+        <div class="form-card">
+          <div class="section-label" style="color:var(--amber)">Parámetros: Cuota Base</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Monto de la Cuota ($)</label>
+              <input id="cfg-monthly-quota" class="f-inp" type="number" value="140000" oninput="modifyGlobalQuota(this.value)">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-card">
+          <div class="section-label" style="color:var(--blue)">Alta de Jugador</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Nombre Completo / Apodo</label>
+              <input id="new-player-name" class="f-inp" type="text" placeholder="Ej: ROMÁN">
+            </div>
+            <button class="add-btn" style="background:var(--blue); color:white;" id="btn-add-player" onclick="addNewPlayerToRoster()">Fichar</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-card">
+        <div class="section-label" style="color:var(--green)">Registrar Aporte Efectivo</div>
+        <div class="form-row">
+          <div class="form-group wide">
+            <label>Seleccionar Miembro del Plantel</label>
+            <select id="form-pay-player" class="f-sel"></select>
+          </div>
+          <div class="form-group">
+            <label>Monto Entregado ($)</label>
+            <input id="form-pay-amount" class="f-inp" type="number" placeholder="Ej: 140000">
+          </div>
+          <button class="add-btn" id="btn-submit-pago" onclick="submitPlayerPayment()">Procesar Cobro</button>
+        </div>
+      </div>
+
+      <div class="form-card">
+        <div class="section-label">Auditoría Operativa de Estados de Cuenta</div>
+        <div style="overflow-x:auto;">
+          <table class="list-table">
+            <thead>
+              <tr>
+                <th>Jugador</th>
+                <th>Cuota Obligatoria</th>
+                <th>Aportado</th>
+                <th>Saldo Remanente</th>
+                <th>Condición</th>
+                <th>Operación</th>
+              </tr>
+            </thead>
+            <tbody id="table-players-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-gastos" class="tab-panel">
+      <div class="form-card">
+        <div class="section-label" style="color:var(--red)">Cargar Nuevo Gasto del Torneo</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Rubro Operativo</label>
+            <select id="form-gasto-cat" class="f-sel">
+              <option>Inscripción / Torneo Campa</option>
+              <option>Honorarios Profe / DT</option>
+              <option>Árbitros y Veedores</option>
+              <option>Indumentaria y Pelotas</option>
+              <option>Tercer Tiempo / Extras</option>
+            </select>
+          </div>
+          <div class="form-group wide">
+            <label>Descripción Comercial</label>
+            <input id="form-gasto-desc" class="f-inp" type="text" placeholder="Ej: Pago de cuota de inscripción general">
+          </div>
+          <div class="form-group">
+            <label>Importe Total ($)</label>
+            <input id="form-gasto-amount" class="f-inp" type="number" placeholder="0">
+          </div>
+          <button class="add-btn" style="background:var(--red); color:white;" id="btn-submit-gasto" onclick="submitGasto()">Imputar Salida</button>
+        </div>
+      </div>
+
+      <div class="form-card">
+        <div class="section-label">Historial Operativo de Desembolsos</div>
+        <div class="tx-list" id="container-gastos-list"></div>
+      </div>
+    </div>
+
+    <div id="tab-archivos" class="tab-panel">
+  <div class="sub-tabs">
+    <button class="sub-tab active" onclick="switchFileSubTab('medicas', this)">🏥 Fichas Médicas</button>
+    <button class="sub-tab" onclick="switchFileSubTab('partidos', this)">🎬 Videos de Partidos</button>
+  </div>
+
+  <!-- SUB-PANEL FICHAS MÉDICAS -->
+  <div id="sub-medicas" class="tab-panel active">
+    <div class="form-card">
+      <div class="section-label" style="color:var(--blue)">Subir Ficha Médica</div>
+      <div class="form-row" style="align-items:center;">
+        <div class="form-group">
+          <label>Jugador</label>
+          <select id="file-med-player" class="f-sel"></select>
+        </div>
+        <div class="form-group wide">
+          <label>Descripción (ej: Apto físico Junio)</label>
+          <input id="file-med-desc" class="f-inp" type="text" placeholder="Apto médico, estudios, etc.">
+        </div>
+      </div>
+      <div class="upload-zone" id="drop-medicas" onclick="document.getElementById('inp-medicas').click()">
+        <input type="file" id="inp-medicas" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple>
+        <div class="upload-icon">📄</div>
+        <div class="upload-text">Arrastrá o hacé clic para subir<br><b>PDF, JPG, PNG</b> — Máximo 10MB por archivo</div>
+      </div>
+      <button class="add-btn" style="background:var(--blue); color:white;" onclick="uploadMedFile()">Guardar Ficha</button>
+    </div>
+
+    <div class="form-card">
+      <div class="section-label">Fichas Médicas del Plantel</div>
+      <div class="file-counter" id="count-medicas">📋 <b>0</b> fichas cargadas</div>
+      <div class="files-grid" id="grid-medicas"></div>
+    </div>
+  </div>
+
+  <!-- SUB-PANEL VIDEOS DE PARTIDOS -->
+  <div id="sub-partidos" class="tab-panel">
+    <div class="form-card">
+      <div class="section-label" style="color:var(--amber)">Subir Video de Partido</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Rival / Título del Partido</label>
+          <input id="file-vid-title" class="f-inp" type="text" placeholder="Ej: vs. Los Halcones — Fecha 3">
+        </div>
+        <div class="form-group">
+          <label>Fecha del Partido</label>
+          <input id="file-vid-date" class="f-inp" type="date">
+        </div>
+      </div>
+      <div class="upload-zone" id="drop-videos" onclick="document.getElementById('inp-videos').click()">
+        <input type="file" id="inp-videos" accept="video/mp4,video/webm,video/quicktime" multiple>
+        <div class="upload-icon">🎥</div>
+        <div class="upload-text">Arrastrá o hacé clic para subir<br><b>MP4, WEBM, MOV</b> — Videos de partidos</div>
+      </div>
+      <button class="add-btn" style="background:var(--amber); color:var(--bg);" onclick="uploadVideoFile()">Guardar Video</button>
+    </div>
+
+    <div class="form-card">
+      <div class="section-label">Videoteca de Partidos</div>
+      <div class="file-counter" id="count-videos">🎬 <b>0</b> videos cargados</div>
+      <div class="files-grid" id="grid-videos"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL VISOR DE ARCHIVOS -->
+<div class="modal-overlay" id="file-modal">
+  <div class="modal-content" id="file-modal-content">
+    <button class="modal-close" onclick="closeFileModal()">×</button>
+  </div>
+</div>
+
+<script>
+
+// ══════════════════════════════════════════════════════════════
+// ██  SUPABASE CONFIG                                        ██
+// ══════════════════════════════════════════════════════════════
+// Leer config del archivo compartido (ya cargado en el HTML)
+const slug = new URLSearchParams(window.location.search).get('equipo') || 'lapausa';
+const EQUIPO_CONFIG = EQUIPOS_MAP[slug];
+
+if (!EQUIPO_CONFIG) {
+  document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;color:#FF5252;font-family:Inter,sans-serif;font-size:18px;">⚠️ Equipo no encontrado. <a href=&quot;/&quot; style=&quot;color:#00E676;margin-left:10px;&quot;>Volver</a></div>';
+  throw new Error('Equipo no encontrado');
+}
+
+const EQUIPO_ID = EQUIPO_CONFIG.id;
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ══════════════════════════════════════════════════════════════
+// ██  VARIABLES GLOBALES                                     ██
+// ══════════════════════════════════════════════════════════════
+const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+let curMonth = 5; // Junio 2026
+let curYear = 2026;
+let pinBuffer = "";
+let uiCharts = {};
+let tickerPos = 0;
+let tickerInterval = null;
+let userRole = null; // 'admin' o 'jugador'
+
+let appData = {
+  equipo: null,
+  jugadores: [],
+  cuota: 140000,
+  pagos: [],
+  gastos: []
+};
+
+// ══════════════════════════════════════════════════════════════
+// ██  TECLADO INTERACTIVO                                    ██
+// ══════════════════════════════════════════════════════════════
+document.addEventListener('keydown', function(e) {
+  if (document.getElementById('pin-screen').style.display !== 'none') {
+    if (e.key >= '0' && e.key <= '9') { e.preventDefault(); pressPin(e.key); }
+    if (e.key === 'Backspace') { e.preventDefault(); deletePin(); }
+    return;
+  }
+  if (e.key === 'Escape') closeFileModal();
+  if (e.key !== 'Enter') return;
+  const el = document.activeElement;
+  if (!el) return;
+  if (el.id === 'new-player-name') { e.preventDefault(); addNewPlayerToRoster(); }
+  if (el.id === 'form-pay-amount') { e.preventDefault(); submitPlayerPayment(); }
+  if (el.id === 'form-gasto-desc' || el.id === 'form-gasto-amount') { e.preventDefault(); submitGasto(); }
+});
+
+// ══════════════════════════════════════════════════════════════
+// ██  PIN & AUTH                                             ██
+// ══════════════════════════════════════════════════════════════
+function pressPin(n) {
+  if (pinBuffer.length >= 4) return;
+  pinBuffer += n; updatePinDots();
+  if (pinBuffer.length === 4) login();
+}
+function deletePin() { pinBuffer = pinBuffer.slice(0,-1); updatePinDots(); }
+function updatePinDots() {
+  for (let i = 0; i < 4; i++) document.getElementById("p"+i).className = "pin-dot" + (i < pinBuffer.length ? " filled" : "");
+}
+
+async function login() {
+  // Traer equipo de Supabase para verificar PIN
+  const { data: equipo } = await db.from('equipos').select('*').eq('id', EQUIPO_ID).single();
+  
+  if (!equipo) {
+    showToast("Error de conexión.", "danger");
+    pinBuffer = ""; updatePinDots();
+    return;
+  }
+
+  if (pinBuffer === equipo.pin_admin) {
+    userRole = 'admin';
+  } else if (pinBuffer === equipo.pin_jugador) {
+    userRole = 'jugador';
+  } else {
+    showToast("PIN Incorrecto.", "danger");
+    pinBuffer = ""; updatePinDots();
+    return;
+  }
+
+  appData.equipo = equipo;
+  document.getElementById("pin-screen").style.display = "none";
+  document.getElementById("app-screen").style.display = "flex";
+  
+  // Aplicar restricciones de rol
+  applyRoleRestrictions();
+  
+  initCharts();
+  await loadAllData();
+  renderAll();
+}
+
+function applyRoleRestrictions() {
+  if (userRole === 'jugador') {
+    // Ocultar botones de acción (agregar, editar, borrar)
+    document.querySelectorAll('.add-btn, .btn-del, #btn-add-player').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.form-card .form-row').forEach(el => {
+      // Ocultar formularios de carga excepto en archivos (para ver)
+      if (!el.closest('#tab-archivos')) {
+        el.style.display = 'none';
+      }
+    });
+    // Ocultar zonas de upload
+    document.querySelectorAll('.upload-zone, #tab-archivos .add-btn').forEach(el => el.style.display = 'none');
+    // Cambiar texto del header
+    document.querySelector('.header-brand span').textContent = 'MODO JUGADOR';
+  }
+}
+
+function lockApp() {
+  pinBuffer = ""; updatePinDots();
+  userRole = null;
+  document.getElementById("app-screen").style.display = "none";
+  document.getElementById("pin-screen").style.display = "flex";
+}
+
+// ══════════════════════════════════════════════════════════════
+// ██  CARGA DE DATOS DESDE SUPABASE                          ██
+// ══════════════════════════════════════════════════════════════
+async function loadAllData() {
+  // Jugadores
+  const { data: jugadores } = await db.from('jugadores')
+    .select('*')
+    .eq('equipo_id', EQUIPO_ID)
+    .eq('activo', true)
+    .order('apodo');
+  appData.jugadores = jugadores || [];
+
+  // Cuota del mes actual
+  const { data: cuotaData } = await db.from('cuotas_config')
+    .select('monto')
+    .eq('equipo_id', EQUIPO_ID)
+    .eq('anio', curYear)
+    .eq('mes', curMonth)
+    .single();
+  appData.cuota = cuotaData ? cuotaData.monto : 140000;
+
+  // Pagos del mes actual
+  const { data: pagos } = await db.from('pagos')
+    .select('*')
+    .eq('equipo_id', EQUIPO_ID)
+    .eq('anio', curYear)
+    .eq('mes', curMonth);
+  appData.pagos = pagos || [];
+
+  // Gastos del mes actual
+  const { data: gastos } = await db.from('gastos')
+    .select('*')
+    .eq('equipo_id', EQUIPO_ID)
+    .eq('anio', curYear)
+    .eq('mes', curMonth)
+    .order('created_at', { ascending: false });
+  appData.gastos = gastos || [];
+}
+
+// ══════════════════════════════════════════════════════════════
+// ██  UI HELPERS                                             ██
+// ══════════════════════════════════════════════════════════════
+function showToast(msg, type = "success") {
+  const c = document.getElementById("toast-container");
+  const t = document.createElement("div"); t.className = `toast ${type}`;
+  t.innerHTML = `<span>${msg}</span>`; c.appendChild(t);
+  setTimeout(() => t.remove(), 2500);
+}
+
+function switchTab(id, btn) {
+  document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+  document.getElementById("tab-" + id).classList.add("active");
+  btn.classList.add("active");
+  if (id === 'archivos') { renderMedFiles(); renderVideoFiles(); }
+}
+
+async function offsetMonth(dir) {
+  curMonth += dir;
+  if (curMonth < 0) { curMonth = 11; curYear--; }
+  if (curMonth > 11) { curMonth = 0; curYear++; }
+  document.getElementById("active-month-text").textContent = MESES[curMonth] + " " + curYear;
+  await loadAllData();
+  renderAll();
+}
+
+const fMoney = n => "$" + Number(n).toLocaleString("es-AR");
+
+// ══════════════════════════════════════════════════════════════
+// ██  RENDER PRINCIPAL                                       ██
+// ══════════════════════════════════════════════════════════════
+function renderAll() {
+  const currentQuota = appData.cuota;
+  const jugadores = appData.jugadores;
+  const pagos = appData.pagos;
+  const gastos = appData.gastos;
+
+  document.getElementById("cfg-monthly-quota").value = currentQuota;
+  
+  // Popular selects de jugadores
+  const jugOpts = jugadores.map(j => `<option value="${j.id}">${j.apodo}</option>`).join("");
+  document.getElementById("form-pay-player").innerHTML = jugOpts;
+  const selMed = document.getElementById('file-med-player');
+  if (selMed) selMed.innerHTML = jugOpts;
+
+  let totalRecaudado = 0, totalMora = 0, deudoresCount = 0, alDiaCount = 0;
+  let tableHtml = "";
+
+  jugadores.forEach(j => {
+    // Sumar pagos de este jugador en este mes
+    const aportado = pagos.filter(p => p.jugador_id === j.id).reduce((s, p) => s + Number(p.monto), 0);
+    totalRecaudado += aportado;
+    const saldo = currentQuota - aportado;
+
+    if (saldo > 0) { totalMora += saldo; deudoresCount++; }
+    else { alDiaCount++; }
+
+    let badge = aportado >= currentQuota ? `<span class="badge-status complete">Al Día</span>` :
+                aportado > 0 ? `<span class="badge-status partial">Parcial</span>` : `<span class="badge-status none">No Pagó</span>`;
+
+    const delBtn = userRole === 'admin' ? `<button class="btn-del" style="font-size:11px;" onclick="removePlayer('${j.id}','${j.apodo}')">Remover</button>` : '';
+
+    tableHtml += `<tr>
+      <td style="font-weight:600; text-transform:uppercase;">${j.apodo}</td>
+      <td>${fMoney(currentQuota)}</td>
+      <td style="color:var(--green); font-weight:600;">${fMoney(aportado)}</td>
+      <td style="color:${saldo > 0 ? 'var(--red)' : 'var(--muted)'};">${fMoney(saldo)}</td>
+      <td>${badge}</td>
+      <td>${delBtn}</td>
+    </tr>`;
+  });
+  document.getElementById("table-players-body").innerHTML = tableHtml;
+
+  const totalGastos = gastos.reduce((s, g) => s + Number(g.monto), 0);
+  const balanceNeto = totalRecaudado - totalGastos;
+
+  document.getElementById("kpi-recaudado").textContent = fMoney(totalRecaudado);
+  document.getElementById("kpi-gastos").textContent = fMoney(totalGastos);
+  document.getElementById("kpi-neto").textContent = fMoney(balanceNeto);
+  document.getElementById("kpi-neto").style.color = balanceNeto >= 0 ? "var(--green)" : "var(--red)";
+  document.getElementById("kpi-mora").textContent = fMoney(totalMora);
+
+  // Alertas
+  const panelAlertas = document.getElementById("panel-alertas");
+  let alertasHtml = "";
+  if (balanceNeto < 0) alertasHtml += `<div style="color:var(--red); font-weight:600;">⚠️ Caja en déficit: faltan ${fMoney(Math.abs(balanceNeto))} para cubrir egresos.</div>`;
+  if (deudoresCount > 0) alertasHtml += `<div>📋 Hay ${deudoresCount} jugadores en mora. Capital restante: <span style="color:var(--amber); font-weight:600;">${fMoney(totalMora)}</span>.</div>`;
+  else if (jugadores.length > 0) alertasHtml += `<div style="color:var(--green);">✅ ¡Plantel 100% al día!</div>`;
+  panelAlertas.style.display = alertasHtml ? "block" : "none";
+  document.getElementById("container-alertas-items").innerHTML = alertasHtml;
+
+  // Gastos lista
+  if (!gastos.length) {
+    document.getElementById("container-gastos-list").innerHTML = '<div style="color:var(--muted); text-align:center; padding:10px;">Sin egresos en este período.</div>';
+  } else {
+    document.getElementById("container-gastos-list").innerHTML = gastos.map(g => `
+      <div class="item-row">
+        <div class="item-main">
+          <div class="item-title">${g.descripcion}</div>
+          <div class="item-sub">Categoría: <b>${g.categoria}</b></div>
+        </div>
+        <div style="font-weight:700; color:var(--red); font-family:'Syne',sans-serif;">-${fMoney(g.monto)}</div>
+        ${userRole === 'admin' ? `<button class="btn-del" onclick="deleteGasto('${g.id}')">×</button>` : ''}
+      </div>
+    `).join("");
+  }
+
+  updateChartsData(totalRecaudado, totalGastos, gastos);
+  updateLiveTicker(totalRecaudado, totalGastos, totalMora, alDiaCount);
+}
+
+// ══════════════════════════════════════════════════════════════
+// ██  ACCIONES ADMIN — CUOTAS                                ██
+// ══════════════════════════════════════════════════════════════
+async function modifyGlobalQuota(val) {
+  if (userRole !== 'admin') return;
+  const monto = parseInt(val) || 0;
+  
+  await db.from('cuotas_config').upsert({
+    equipo_id: EQUIPO_ID,
+    anio: curYear,
+    mes: curMonth,
+    monto: monto
+  }, { onConflict: 'equipo_id,anio,mes' });
+  
+  appData.cuota = monto;
+  renderAll();
+}
+
+// ══════════════════════════════════════════════════════════════
+// ██  ACCIONES ADMIN — JUGADORES                             ██
+// ══════════════════════════════════════════════════════════════
+async function addNewPlayerToRoster() {
+  if (userRole !== 'admin') return;
+  const inp = document.getElementById("new-player-name");
+  let name = inp.value.trim().toUpperCase();
+  if (!name) return showToast("Nombre no válido.", "danger");
+  if (appData.jugadores.find(j => j.apodo === name)) return showToast("Ya existe.", "danger");
+
+  const { data, error } = await db.from('jugadores').insert({
+    equipo_id: EQUIPO_ID,
+    apodo: name
+  }).select().single();
+
+  if (error) return showToast("Error al fichar.", "danger");
+  
+  appData.jugadores.push(data);
+  inp.value = "";
+  renderAll();
+  showToast(`¡${name} fichado!`);
+}
+
+async function removePlayer(id, name) {
+  if (userRole !== 'admin') return;
+  if (!confirm(`¿Remover a ${name} del plantel?`)) return;
+
+  await db.from('jugadores').update({ activo: false }).eq('id', id);
+  appData.jugadores = appData.jugadores.filter(j => j.id !== id);
+  renderAll();
+  showToast("Jugador removido.");
+}
+
+// ══════════════════════════════════════════════════════════════
+// ██  ACCIONES ADMIN — PAGOS                                 ██
+// ══════════════════════════════════════════════════════════════
+async function submitPlayerPayment() {
+  if (userRole !== 'admin') return;
+  const jugadorId = document.getElementById("form-pay-player").value;
+  const amt = parseInt(document.getElementById("form-pay-amount").value) || 0;
+  if (amt <= 0) return showToast("Monto debe ser mayor a 0.", "danger");
+
+  const { data, error } = await db.from('pagos').insert({
+    equipo_id: EQUIPO_ID,
+    jugador_id: jugadorId,
+    anio: curYear,
+    mes: curMonth,
+    monto: amt
+  }).select().single();
+
+  if (error) return showToast("Error registrando pago.", "danger");
+
+  appData.pagos.push(data);
+  document.getElementById("form-pay-amount").value = "";
+  renderAll();
+  showToast("Pago acreditado.");
+}
+
+// ══════════════════════════════════════════════════════════════
+// ██  ACCIONES ADMIN — GASTOS                                ██
+// ══════════════════════════════════════════════════════════════
+async function submitGasto() {
+  if (userRole !== 'admin') return;
+  const cat = document.getElementById("form-gasto-cat").value;
+  const desc = document.getElementById("form-gasto-desc").value.trim();
+  const amount = parseFloat(document.getElementById("form-gasto-amount").value) || 0;
+  if (!desc || amount <= 0) return showToast("Completá descripción e importe.", "danger");
+
+  const { data, error } = await db.from('gastos').insert({
+    equipo_id: EQUIPO_ID,
+    anio: curYear,
+    mes: curMonth,
+    categoria: cat,
+    descripcion: desc,
+    monto: amount
+  }).select().single();
+
+  if (error) return showToast("Error al imputar.", "danger");
+
+  appData.gastos.unshift(data);
+  document.getElementById("form-gasto-desc").value = "";
+  document.getElementById("form-gasto-amount").value = "";
+  renderAll();
+  showToast("Salida imputada.");
+}
+
+async function deleteGasto(id) {
+  if (userRole !== 'admin') return;
+  await db.from('gastos').delete().eq('id', id);
+  appData.gastos = appData.gastos.filter(g => g.id !== id);
+  renderAll();
+}
+
+// ══════════════════════════════════════════════════════════════
+// ██  ARCHIVOS — SUPABASE STORAGE                            ██
+// ══════════════════════════════════════════════════════════════
+function switchFileSubTab(id, btn) {
+  document.querySelectorAll('#tab-archivos .sub-tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('#tab-archivos > .tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('sub-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+
+async function uploadMedFile() {
+  if (userRole !== 'admin') return;
+  const jugadorId = document.getElementById('file-med-player').value;
+  const desc = document.getElementById('file-med-desc').value.trim();
+  const input = document.getElementById('inp-medicas');
+  const files = input.files;
+
+  if (!jugadorId) return showToast('Seleccioná un jugador.', 'danger');
+  if (!desc) return showToast('Agregá descripción.', 'danger');
+  if (!files.length) return showToast('Seleccioná un archivo.', 'danger');
+
+  for (const file of files) {
+    if (file.size > 10 * 1024 * 1024) { showToast(`${file.name} supera 10MB.`, 'danger'); continue; }
+
+    const filePath = `${EQUIPO_ID}/medicas/${Date.now()}_${file.name}`;
+    const { error: upErr } = await db.storage.from(STORAGE_BUCKET).upload(filePath, file);
+    if (upErr) { showToast('Error subiendo archivo.', 'danger'); continue; }
+
+    const { data: urlData } = db.storage.from(STORAGE_BUCKET).getPublicUrl(filePath);
+
+    await db.from('archivos').insert({
+      equipo_id: EQUIPO_ID,
+      tipo: 'ficha_medica',
+      jugador_id: jugadorId,
+      descripcion: desc,
+      archivo_url: urlData.publicUrl,
+      archivo_nombre: file.name,
+      archivo_tipo: file.type,
+      archivo_size: file.size
+    });
+  }
+
+  input.value = '';
+  document.getElementById('file-med-desc').value = '';
+  showToast('Ficha guardada.');
+  renderMedFiles();
+}
+
+async function uploadVideoFile() {
+  if (userRole !== 'admin') return;
+  const title = document.getElementById('file-vid-title').value.trim();
+  const date = document.getElementById('file-vid-date').value;
+  const input = document.getElementById('inp-videos');
+  const files = input.files;
+
+  if (!title) return showToast('Ingresá el rival/título.', 'danger');
+  if (!date) return showToast('Seleccioná fecha.', 'danger');
+  if (!files.length) return showToast('Seleccioná un video.', 'danger');
+
+  for (const file of files) {
+    const filePath = `${EQUIPO_ID}/videos/${Date.now()}_${file.name}`;
+    const { error: upErr } = await db.storage.from(STORAGE_BUCKET).upload(filePath, file);
+    if (upErr) { showToast('Error subiendo video.', 'danger'); continue; }
+
+    const { data: urlData } = db.storage.from(STORAGE_BUCKET).getPublicUrl(filePath);
+
+    await db.from('archivos').insert({
+      equipo_id: EQUIPO_ID,
+      tipo: 'video_partido',
+      titulo: title,
+      archivo_url: urlData.publicUrl,
+      archivo_nombre: file.name,
+      archivo_tipo: file.type,
+      archivo_size: file.size,
+      fecha_partido: date
+    });
+  }
+
+  input.value = '';
+  document.getElementById('file-vid-title').value = '';
+  document.getElementById('file-vid-date').value = '';
+  showToast('Video guardado.');
+  renderVideoFiles();
+}
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+async function renderMedFiles() {
+  const { data: files } = await db.from('archivos')
+    .select('*, jugadores(apodo)')
+    .eq('equipo_id', EQUIPO_ID)
+    .eq('tipo', 'ficha_medica')
+    .order('created_at', { ascending: false });
+
+  const grid = document.getElementById('grid-medicas');
+  document.getElementById('count-medicas').innerHTML = `📋 <b>${(files||[]).length}</b> fichas cargadas`;
+
+  if (!files || !files.length) {
+    grid.innerHTML = '<div style="color:var(--muted); text-align:center; padding:20px; grid-column:1/-1;">No hay fichas médicas cargadas.</div>';
+    return;
+  }
+
+  grid.innerHTML = files.map(f => {
+    const isImage = (f.archivo_tipo || '').startsWith('image/');
+    const preview = isImage
+      ? `<img src="${f.archivo_url}" class="img-preview" alt="${f.archivo_nombre}">`
+      : `<div style="background:var(--bg); border-radius:4px; padding:20px; text-align:center; font-size:32px;">📄</div>`;
+    const delBtn = userRole === 'admin' ? `<button class="del" onclick="removeFile('${f.id}')">🗑 Eliminar</button>` : '';
+
+    return `<div class="file-card">
+      ${preview}
+      <div class="file-name">${f.archivo_nombre}</div>
+      <div class="file-meta">👤 ${f.jugadores?.apodo || '—'} · ${f.descripcion || ''}</div>
+      <div class="file-meta">📅 ${new Date(f.created_at).toLocaleDateString('es-AR')} · ${formatFileSize(f.archivo_size || 0)}</div>
+      <div class="file-actions">
+        <button onclick="window.open('${f.archivo_url}','_blank')">👁 Ver</button>
+        <button onclick="downloadUrl('${f.archivo_url}','${f.archivo_nombre}')">⬇ Descargar</button>
+        ${delBtn}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function renderVideoFiles() {
+  const { data: files } = await db.from('archivos')
+    .select('*')
+    .eq('equipo_id', EQUIPO_ID)
+    .eq('tipo', 'video_partido')
+    .order('created_at', { ascending: false });
+
+  const grid = document.getElementById('grid-videos');
+  document.getElementById('count-videos').innerHTML = `🎬 <b>${(files||[]).length}</b> videos cargados`;
+
+  if (!files || !files.length) {
+    grid.innerHTML = '<div style="color:var(--muted); text-align:center; padding:20px; grid-column:1/-1;">No hay videos cargados.</div>';
+    return;
+  }
+
+  grid.innerHTML = files.map(f => {
+    const delBtn = userRole === 'admin' ? `<button class="del" onclick="removeFile('${f.id}')">🗑 Eliminar</button>` : '';
+    return `<div class="file-card">
+      <video class="video-preview" preload="metadata" muted>
+        <source src="${f.archivo_url}" type="${f.archivo_tipo || 'video/mp4'}">
+      </video>
+      <div class="file-name">⚽ ${f.titulo || f.archivo_nombre}</div>
+      <div class="file-meta">📅 Partido: ${f.fecha_partido ? new Date(f.fecha_partido+'T12:00').toLocaleDateString('es-AR') : '—'}</div>
+      <div class="file-meta">${f.archivo_nombre} · ${formatFileSize(f.archivo_size || 0)}</div>
+      <div class="file-actions">
+        <button onclick="window.open('${f.archivo_url}','_blank')">▶ Reproducir</button>
+        <button onclick="downloadUrl('${f.archivo_url}','${f.archivo_nombre}')">⬇ Descargar</button>
+        ${delBtn}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function removeFile(id) {
+  if (userRole !== 'admin') return;
+  if (!confirm('¿Eliminar archivo?')) return;
+  await db.from('archivos').delete().eq('id', id);
+  showToast('Archivo eliminado.');
+  renderMedFiles();
+  renderVideoFiles();
+}
+
+function downloadUrl(url, name) {
+  const a = document.createElement('a');
+  a.href = url; a.download = name; a.target = '_blank';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+function closeFileModal() {
+  const modal = document.getElementById('file-modal');
+  modal.classList.remove('open');
+  const vid = modal.querySelector('video');
+  if (vid) vid.pause();
+  document.getElementById('file-modal-content').innerHTML = '<button class="modal-close" onclick="closeFileModal()">×</button>';
+}
+
+// ══════════════════════════════════════════════════════════════
+// ██  TICKER                                                 ██
+// ══════════════════════════════════════════════════════════════
+function updateLiveTicker(rec, gast, mora, okCount) {
+  clearInterval(tickerInterval);
+  const total = appData.jugadores.length;
+  const pct = total ? Math.round((okCount / total) * 100) : 0;
+  const text = [
+    `📊 RESUMEN ${MESES[curMonth].toUpperCase()} ${curYear}`,
+    `💰 RECAUDADO: ${fMoney(rec)}`,
+    `💸 EGRESOS: ${fMoney(gast)}`,
+    `⚖️ NETO: ${fMoney(rec - gast)}`,
+    `🚨 MORA: ${fMoney(mora)}`,
+    `🏃 AL DÍA: ${okCount}/${total} (${pct}%)`,
+    `🏆 ${appData.equipo?.torneo || 'TORNEO'}`
+  ].join('   ·   ');
+  document.getElementById("t1").textContent = text;
+  document.getElementById("t2").textContent = text;
+  tickerPos = 0;
+  const wrapper = document.getElementById("tick-inner");
+  tickerInterval = setInterval(() => {
+    tickerPos -= 1;
+    if (Math.abs(tickerPos) >= (wrapper.scrollWidth / 2)) tickerPos = 0;
+    wrapper.style.transform = `translateX(${tickerPos}px)`;
+  }, 25);
+}
+
+// ══════════════════════════════════════════════════════════════
+// ██  GRÁFICOS                                               ██
+// ══════════════════════════════════════════════════════════════
+function initCharts() {
+  if (typeof Chart === 'undefined') return;
+  Chart.defaults.color = '#8FA395';
+  Chart.defaults.font.family = "'Inter', sans-serif";
+  Chart.defaults.borderColor = 'rgba(255,255,255,0.03)';
+
+  uiCharts.line = new Chart(document.getElementById('chart-line-evolucion').getContext('2d'), {
+    type: 'line',
+    data: { labels: [], datasets: [] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { font: { weight: 600 } } } }, scales: { y: { grid: { color: 'rgba(255,255,255,0.03)' } }, x: { grid: { display: false } } } }
+  });
+  uiCharts.pie = new Chart(document.getElementById('chart-pie-gastos').getContext('2d'), {
+    type: 'doughnut',
+    data: { labels: [], datasets: [] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'right', labels: { boxWidth: 8, padding: 10 } } } }
+  });
+}
+
+async function updateChartsData(totalRecaudado, totalGastos, currentGastos) {
+  if (!uiCharts.line || !uiCharts.pie) return;
+
+  // Traer histórico de 3 meses para el gráfico de línea
+  const mesesLabels = [];
+  const histRec = [], histGas = [];
+  
+  for (let i = 2; i >= 0; i--) {
+    let m = curMonth - i, y = curYear;
+    if (m < 0) { m += 12; y--; }
+    mesesLabels.push(MESES[m]);
+    
+    if (m === curMonth && y === curYear) {
+      histRec.push(totalRecaudado);
+      histGas.push(totalGastos);
+    } else {
+      const { data: p } = await db.from('pagos').select('monto').eq('equipo_id', EQUIPO_ID).eq('anio', y).eq('mes', m);
+      const { data: g } = await db.from('gastos').select('monto').eq('equipo_id', EQUIPO_ID).eq('anio', y).eq('mes', m);
+      histRec.push((p||[]).reduce((s, x) => s + Number(x.monto), 0));
+      histGas.push((g||[]).reduce((s, x) => s + Number(x.monto), 0));
+    }
+  }
+
+  uiCharts.line.data.labels = mesesLabels;
+  uiCharts.line.data.datasets = [
+    { label: 'Recaudado ($)', data: histRec, borderColor: '#00E676', backgroundColor: 'rgba(0,230,118,0.02)', tension: 0.3, borderWidth: 2, pointRadius: 4 },
+    { label: 'Egresos ($)', data: histGas, borderColor: '#FF5252', backgroundColor: 'rgba(255,82,82,0.02)', tension: 0.3, borderWidth: 2, pointRadius: 4 }
+  ];
+  uiCharts.line.update();
+
+  // Donut de gastos por categoría
+  const agrupados = currentGastos.reduce((acc, g) => { acc[g.categoria] = (acc[g.categoria] || 0) + Number(g.monto); return acc; }, {});
+  uiCharts.pie.data.labels = Object.keys(agrupados);
+  uiCharts.pie.data.datasets = [{ data: Object.values(agrupados), backgroundColor: ['#FF5252','#2196F3','#FFD740','#00E676','#9C27B0'], borderWidth: 0 }];
+  uiCharts.pie.update();
+}
+
+// ══════════════════════════════════════════════════════════════
+// ██  DRAG & DROP                                            ██
+// ══════════════════════════════════════════════════════════════
+function setupDropZone(zoneId, inputId) {
+  const zone = document.getElementById(zoneId);
+  const input = document.getElementById(inputId);
+  if (!zone || !input) return;
+  ['dragenter','dragover'].forEach(evt => zone.addEventListener(evt, e => { e.preventDefault(); zone.classList.add('dragover'); }));
+  ['dragleave','drop'].forEach(evt => zone.addEventListener(evt, e => { e.preventDefault(); zone.classList.remove('dragover'); }));
+  zone.addEventListener('drop', e => { input.files = e.dataTransfer.files; });
+}
+
+// ══════════════════════════════════════════════════════════════
+// ██  INIT                                                   ██
+// ══════════════════════════════════════════════════════════════
+window.onload = function() {
+  // Título dinámico
+  document.getElementById('auth-team-name').textContent = EQUIPO_CONFIG.nombre;
+  document.querySelector('.header-brand').innerHTML = `${EQUIPO_CONFIG.nombre} <span>SISTEMA DE LIGAS v2.0</span>`;
+  document.title = `${EQUIPO_CONFIG.nombre} — Gestión de Equipo`;
+  
+  document.getElementById("active-month-text").textContent = MESES[curMonth] + " " + curYear;
+  setupDropZone('drop-medicas', 'inp-medicas');
+  setupDropZone('drop-videos', 'inp-videos');
+};
+
+</script>
+</body>
+</html>
