@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Campa 2026 — Portal de Equipos</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #060B08; --card: #0E1611; --inner: #090E0B;
+  --border: rgba(255,255,255,0.06); --muted: #8FA395;
+  --sub: #C2D1C7; --text: #EBF5EF; --green: #00E676;
+}
+body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+
+.hero { text-align: center; padding: 60px 20px 40px; max-width: 600px; }
+.hero-icon { font-size: 48px; margin-bottom: 16px; }
+.hero h1 { font-family: 'Syne', sans-serif; font-size: 32px; font-weight: 800; margin-bottom: 8px; }
+.hero h1 span { color: var(--green); }
+.hero p { color: var(--muted); font-size: 14px; line-height: 1.6; }
+
+.teams-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; max-width: 900px; width: 100%; padding: 0 20px 60px; }
+
+.team-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; display: flex; align-items: center; gap: 16px; cursor: pointer; transition: all 0.2s; text-decoration: none; border-left: 4px solid var(--border); }
+.team-card:hover { border-color: var(--green); border-left-color: var(--green); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+
+.team-logo { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; border: 2px solid var(--border); background: var(--inner); }
+.team-card:hover .team-logo { border-color: var(--green); }
+
+.team-info h3 { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.team-info p { font-size: 11px; color: var(--muted); }
+
+.badge-live { font-size: 9px; padding: 2px 8px; border-radius: 10px; background: rgba(0,230,118,0.1); color: var(--green); font-weight: 700; text-transform: uppercase; margin-left: auto; letter-spacing: 0.5px; }
+
+.footer { padding: 20px; text-align: center; color: var(--muted); font-size: 11px; border-top: 1px solid var(--border); width: 100%; margin-top: auto; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-icon">⚽</div>
+  <h1>TORNEO <span>CAMPA</span> 2026</h1>
+  <p>Portal de gestión por equipo. Seleccioná tu equipo para acceder al control operativo de caja, plantel y archivos.</p>
+</div>
+
+<div class="teams-grid" id="teams-grid">
+  <!-- Se llena dinámicamente -->
+</div>
+
+<div class="footer">
+  Campa 2026 — Sistema de Gestión por Equipo · Córdoba, Argentina
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+// REGISTRO DE EQUIPOS — Agregar nuevos equipos acá
+// ══════════════════════════════════════════════════════
+const EQUIPOS = [
+  {
+    slug: 'lapausa',
+    nombre: 'LA PAUSA FC',
+    emoji: '☕',
+    torneo: 'Campa 2026',
+    activo: true
+  },
+  // ── Agregar más equipos acá abajo ──
+  // {
+  //   slug: 'loshalcones',
+  //   nombre: 'LOS HALCONES',
+  //   emoji: '🦅',
+  //   torneo: 'Campa 2026',
+  //   activo: true
+  // },
+];
+
+const grid = document.getElementById('teams-grid');
+grid.innerHTML = EQUIPOS.filter(e => e.activo).map(e => `
+  <a class="team-card" href="/equipo.html?equipo=${e.slug}">
+    <div class="team-logo">${e.emoji}</div>
+    <div class="team-info">
+      <h3>${e.nombre}</h3>
+      <p>${e.torneo}</p>
+    </div>
+    <span class="badge-live">Activo</span>
+  </a>
+`).join('');
+</script>
+
+</body>
+</html>
