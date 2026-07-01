@@ -44,7 +44,7 @@ body {
 @keyframes slideIn { from { opacity: 0; transform: translateX(20px) } to { opacity: 1; transform: none } }
 
 /* ── ACCESO SEGURIDAD (PIN) ── */
-.auth-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: linear-gradient(135deg, #051207, var(--bg)); }
+.auth-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: linear-gradient(135deg, #051207, var(--bg)); position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 300; }
 .auth-box { max-width: 360px; width: 100%; text-align: center; background: var(--card); padding: 40px 30px; border-radius: var(--r); border: 1px solid var(--border); box-shadow: 0 12px 40px rgba(0,0,0,0.6); }
 .auth-title { font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 800; color: var(--text); margin-bottom: 6px; }
 .auth-sub { color: var(--muted); font-size: 12px; margin-bottom: 20px; line-height: 1.4; }
@@ -272,23 +272,6 @@ body {
       <button class="pin-key" style="color:var(--muted)" onclick="deletePin()">⌫</button>
     </div>
     <button onclick="backToWelcome()" style="margin-top:16px; background:none; border:none; color:var(--muted); font-size:11px; cursor:pointer; font-family:inherit;">← Volver</button>
-  </div>
-</div>
-    <div class="pin-pad">
-      <button class="pin-key" onclick="pressPin('1')">1</button>
-      <button class="pin-key" onclick="pressPin('2')">2</button>
-      <button class="pin-key" onclick="pressPin('3')">3</button>
-      <button class="pin-key" onclick="pressPin('4')">4</button>
-      <button class="pin-key" onclick="pressPin('5')">5</button>
-      <button class="pin-key" onclick="pressPin('6')">6</button>
-      <button class="pin-key" onclick="pressPin('7')">7</button>
-      <button class="pin-key" onclick="pressPin('8')">8</button>
-      <button class="pin-key" onclick="pressPin('9')">9</button>
-      <button class="pin-key" style="background:transparent; border:none; cursor:default;"></button>
-      <button class="pin-key" onclick="pressPin('0')">0</button>
-      <button class="pin-key" style="color:var(--muted)" onclick="deletePin()">⌫</button>
-    </div>
-    <div style="font-size:11px; margin-top:20px; color:var(--muted)">Acceso demo: 1402</div>
   </div>
 </div>
 
