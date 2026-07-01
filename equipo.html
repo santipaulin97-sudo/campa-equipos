@@ -229,15 +229,51 @@ body {
 
 <div id="toast-container"></div>
 
-<div id="pin-screen" class="auth-screen">
+<!-- PANTALLA 1: BIENVENIDA DEL EQUIPO -->
+<div id="welcome-screen" class="auth-screen">
+  <div class="auth-box" style="max-width:400px;">
+    <span style="font-size:48px; display:block; margin-bottom:12px;" id="welcome-emoji">⚽</span>
+    <div class="auth-title" id="welcome-team-name">CARGANDO...</div>
+    <div class="auth-sub" id="welcome-torneo">Gestión Operativa de Equipo</div>
+    <div style="display:flex; flex-direction:column; gap:10px; margin-top:24px;">
+      <button onclick="showPin('admin')" style="padding:14px 24px; font-size:14px; font-weight:700; border:none; border-radius:6px; cursor:pointer; background:var(--green); color:var(--bg); font-family:inherit; transition:opacity 0.2s;">
+        🔐 Acceso Delegado / Admin
+      </button>
+      <button onclick="showPin('jugador')" style="padding:14px 24px; font-size:14px; font-weight:700; border:none; border-radius:6px; cursor:pointer; background:var(--inner); color:var(--text); border:1px solid var(--border); font-family:inherit; transition:all 0.2s;">
+        👤 Acceso Jugador
+      </button>
+    </div>
+    <div style="font-size:10px; margin-top:24px; color:rgba(255,255,255,0.15);">Powered by CampaGestión</div>
+  </div>
+</div>
+
+<!-- PANTALLA 2: PIN -->
+<div id="pin-screen" class="auth-screen" style="display:none;">
   <div class="auth-box">
     <span style="font-size:36px; display:block; margin-bottom:10px;">⚽</span>
-    <div class="auth-title" id="auth-team-name">CARGANDO...</div>
-    <div class="auth-sub">Control Operativo de Caja y Plantel<br>Torneo Campa 2026. Introduce el PIN.</div>
+    <div class="auth-title" id="auth-team-name">EQUIPO</div>
+    <div class="auth-sub" id="pin-subtitle">Introduce el PIN.</div>
     <div class="pin-dots" id="pin-dots">
       <div class="pin-dot" id="p0"></div><div class="pin-dot" id="p1"></div>
       <div class="pin-dot" id="p2"></div><div class="pin-dot" id="p3"></div>
     </div>
+    <div class="pin-pad">
+      <button class="pin-key" onclick="pressPin('1')">1</button>
+      <button class="pin-key" onclick="pressPin('2')">2</button>
+      <button class="pin-key" onclick="pressPin('3')">3</button>
+      <button class="pin-key" onclick="pressPin('4')">4</button>
+      <button class="pin-key" onclick="pressPin('5')">5</button>
+      <button class="pin-key" onclick="pressPin('6')">6</button>
+      <button class="pin-key" onclick="pressPin('7')">7</button>
+      <button class="pin-key" onclick="pressPin('8')">8</button>
+      <button class="pin-key" onclick="pressPin('9')">9</button>
+      <button class="pin-key" style="background:transparent; border:none; cursor:default;"></button>
+      <button class="pin-key" onclick="pressPin('0')">0</button>
+      <button class="pin-key" style="color:var(--muted)" onclick="deletePin()">⌫</button>
+    </div>
+    <button onclick="backToWelcome()" style="margin-top:16px; background:none; border:none; color:var(--muted); font-size:11px; cursor:pointer; font-family:inherit;">← Volver</button>
+  </div>
+</div>
     <div class="pin-pad">
       <button class="pin-key" onclick="pressPin('1')">1</button>
       <button class="pin-key" onclick="pressPin('2')">2</button>
@@ -553,6 +589,27 @@ document.addEventListener('keydown', function(e) {
 // ══════════════════════════════════════════════════════════════
 // ██  PIN & AUTH                                             ██
 // ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
+// ██  WELCOME SCREEN                                         ██
+// ══════════════════════════════════════════════════════════════
+let accessMode = null; // 'admin' o 'jugador'
+
+function showPin(mode) {
+  accessMode = mode;
+  document.getElementById('welcome-screen').style.display = 'none';
+  document.getElementById('pin-screen').style.display = 'flex';
+  document.getElementById('pin-subtitle').textContent = 
+    mode === 'admin' ? 'PIN de Delegado / Administrador' : 'PIN de Jugador';
+}
+
+function backToWelcome() {
+  pinBuffer = ''; updatePinDots();
+  document.getElementById('pin-screen').style.display = 'none';
+  document.getElementById('welcome-screen').style.display = 'flex';
+}
+
+
+  
 function pressPin(n) {
   if (pinBuffer.length >= 4) return;
   pinBuffer += n; updatePinDots();
@@ -616,7 +673,8 @@ function lockApp() {
   pinBuffer = ""; updatePinDots();
   userRole = null;
   document.getElementById("app-screen").style.display = "none";
-  document.getElementById("pin-screen").style.display = "flex";
+  document.getElementById("pin-screen").style.display = "none";
+  document.getElementById("welcome-screen").style.display = "flex";
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1165,11 +1223,14 @@ function setupDropZone(zoneId, inputId) {
 // ██  INIT                                                   ██
 // ══════════════════════════════════════════════════════════════
 window.onload = function() {
-  // Título dinámico
+  // Personalizar pantalla de bienvenida
+  document.getElementById('welcome-team-name').textContent = EQUIPO_CONFIG.nombre;
+  document.getElementById('welcome-emoji').textContent = EQUIPO_CONFIG.emoji || '⚽';
+  document.getElementById('welcome-torneo').innerHTML = 'Gestión Operativa de Equipo<br><span style="color:var(--green); font-size:11px;">Torneo Campa 2026</span>';
   document.getElementById('auth-team-name').textContent = EQUIPO_CONFIG.nombre;
   document.querySelector('.header-brand').innerHTML = `${EQUIPO_CONFIG.nombre} <span>SISTEMA DE LIGAS v2.0</span>`;
   document.title = `${EQUIPO_CONFIG.nombre} — Gestión de Equipo`;
-  
+
   document.getElementById("active-month-text").textContent = MESES[curMonth] + " " + curYear;
   setupDropZone('drop-medicas', 'inp-medicas');
   setupDropZone('drop-videos', 'inp-videos');
